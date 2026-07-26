@@ -24,6 +24,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # main 当前处于重构期且自坏：2026-07-26 的 commit 删除了
+          # apps/desktop/src/extensions/ai 目录，导致 CopilotSetting 引用缺失、构建失败。
+          # 这里固定 checkout 到 AI 模块仍在、可构建的最后一个 commit。
+          # 等上游修复 main 后，把下面这行 ref 删掉即可回到最新代码。
+          ref: 513b2365cb00b17fce646679ccf094bdbf6ce6ce
 
       # ---- 前端环境：Node 22（package.json engines 要求 >=22.12）----
       - name: Setup Node.js
