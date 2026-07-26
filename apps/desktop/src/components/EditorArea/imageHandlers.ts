@@ -9,6 +9,7 @@ import {
 } from '@/helper/image'
 import { logger } from '@/helper/logger'
 import { sleep } from '@/helper'
+import { uploadToRemote } from '@/services/image-upload'
 import { useEditorStore } from '@/stores'
 import useAppSettingStore from '@/stores/useAppSettingStore'
 import { join } from '@tauri-apps/api/path'
@@ -133,6 +134,14 @@ export const handleInsertLocalImage = async (
     ) {
       const dataUrl = await readImageFileAsDataUrl(filePath)
       return createImageAttributes(dataUrl || filePath, fileName)
+    }
+
+    if (settingData.when_upload_image === 'upload_to_remote') {
+      const base64 = await readFileAsBase64(filePath)
+      // Strip data-url prefix if present
+      const rawBase64 = base64.includes(',') ? base64.split(',')[1] : base64
+      const result = await uploadToRemote(rawBase64, fileName || 'image.png')
+      return createImageAttributes(result.url, fileName)
     }
   } catch (error) {
     logger.error('Local image insertion failed:', error)
@@ -293,6 +302,18 @@ export const handleUploadImage = (files: any[], fileId?: string) => {
             'data-file-name': file.name,
           }
         }
+
+        if (settingData.when_upload_image === 'upload_to_remote') {
+          const base64 = await readFileAsBase64(file)
+          const rawBase64 = base64.includes(',') ? base64.split(',')[1] : base64
+          const result = await uploadToRemote(rawBase64, file.name || 'image.png')
+          completed += 1
+          progress(completed / files.length)
+          return {
+            src: result.url,
+            'data-file-name': file.name,
+          }
+        }
       } catch (error) {
         logger.error('Image upload failed:', error)
         const reader = new FileReader()
@@ -385,6 +406,13 @@ export const handleImagePaste = async (src: string, fileId?: string): Promise<st
       } else {
         return fullPath
       }
+    }
+
+    if (settingData.when_paste_image === 'upload_to_remote') {
+      const base64 = await convertImageToBase64(src)
+      const rawBase64 = base64.includes(',') ? base64.split(',')[1] : base64
+      const result = await uploadToRemote(rawBase64, `paste-${Date.now()}.png`)
+      return result.url
     }
   } catch (error) {
     logger.error('Image conversion failed:', error)
