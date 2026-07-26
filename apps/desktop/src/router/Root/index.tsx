@@ -2,6 +2,8 @@ import { commandRegistry } from '@/commands'
 import { AppInfoDialog, SideBar } from '@/components'
 import EditorArea from '@/components/EditorArea'
 import { PageLayout } from '@/components/Layout'
+import { MenuBar } from '@/components/MenuBar'
+import '@/components/MenuBar/menubar.css'
 import RightBar from '@/components/SideBar/RightBar'
 import StatusBar from '@/components/StatusBar'
 import { WorkspaceDialog } from '@/components/WorkspaceDialog'
@@ -111,7 +113,7 @@ function Root() {
 
   return (
     <PageLayout>
-      {/* <TitleBar /> */}
+      <MenuBar />
       <Group defaultLayout={defaultLayout} onLayoutChange={onLayoutChanged}>
         <Panel
           id='root-left'
