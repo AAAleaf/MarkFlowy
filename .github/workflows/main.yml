@@ -41,8 +41,8 @@ jobs:
       - name: Run postinstall setup
         run: yarn setup
 
-      - name: Build all workspace packages
-        run: yarn build
+      - name: Build workspace packages (exclude web)
+        run: yarn turbo build --filter=!@markflowy/web --concurrency=2
 
       - name: Build Tauri desktop app (NSIS installer)
         run: yarn workspace @markflowy/desktop tauri:build --target x86_64-pc-windows-msvc
