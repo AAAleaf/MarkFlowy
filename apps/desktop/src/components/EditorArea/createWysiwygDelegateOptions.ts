@@ -1,16 +1,3 @@
-import { getPreferredAIModelKey } from '@/extensions/ai/aiModelPreference'
-import {
-  aiProviderRegistry,
-  aiProviders,
-  isAIProviderConfigured,
-  parseAIModelKey,
-  parseConfiguredModels,
-} from '@/extensions/ai/aiProvidersService'
-import { aiGenerateTextRequest } from '@/extensions/ai/api'
-import {
-  resolveCopilotModelConfig,
-  resolveSelectedAIModelConfig,
-} from '@/extensions/ai/copilotModelConfig'
 import { sleep } from '@/helper'
 import { clipboardRead } from '@/helper/clipboard'
 import { getFileObject } from '@/helper/files'
@@ -18,7 +5,6 @@ import { getFolderPathFromPath } from '@/helper/filesys'
 import { getImageUrlInTauri } from '@/helper/image'
 import { logger } from '@/helper/logger'
 import { useEditorKeybindingStore } from '@/hooks/useKeyboard'
-import { locales } from '@/i18n'
 import useAppSettingStore from '@/stores/useAppSettingStore'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { openUrl } from '@tauri-apps/plugin-opener'
@@ -26,7 +12,6 @@ import type { CreateWysiwygDelegateOptions } from 'rme'
 import { handleImagePaste, handleUploadImage } from './imageHandlers'
 import { requestImageInsert } from './requestImageInsert'
 
-type AIOptions = NonNullable<CreateWysiwygDelegateOptions['ai']>
 type LivePreviewBlockBehavior = 'auto' | 'always-split'
 // rme/dist is generated and ignored, so Desktop can type-check this source option
 // before the local rme declaration bundle is refreshed.
@@ -47,24 +32,6 @@ export const getCurrentEditorInsertDateFormat = () => {
 
 export const createWysiwygDelegateOptions = (fileId?: string): WysiwygDelegateOptions => {
   const settingData = useAppSettingStore.getState().settingData
-  const supportProviderInfosMap: AIOptions['supportProviderInfosMap'] = {}
-
-  aiProviders.forEach((providerId) => {
-    if (!isAIProviderConfigured(providerId, settingData)) return
-
-    supportProviderInfosMap[providerId] = {
-      models: parseConfiguredModels(settingData[aiProviderRegistry[providerId].settingKeys.models]),
-    }
-  })
-
-  const preferredProvider = parseAIModelKey(getPreferredAIModelKey())?.providerId
-  const firstConfiguredProvider = aiProviders.find(
-    (providerId) => supportProviderInfosMap[providerId]?.models.length,
-  )
-  const defaultSelectProvider =
-    (preferredProvider && supportProviderInfosMap[preferredProvider]
-      ? preferredProvider
-      : firstConfiguredProvider) ?? 'openai'
 
   return {
     disableAllBuildInShortcuts: true,
@@ -102,108 +69,6 @@ export const createWysiwygDelegateOptions = (fileId?: string): WysiwygDelegateOp
         logger.error('Failed to get image URL:', error)
       }
       return url
-    },
-    ai: {
-      defaultSelectProvider,
-      supportProviderInfosMap,
-      copilot: settingData.copilot_enabled
-        ? {
-            generateText: async ({
-              context,
-            }: {
-              context: {
-                prevParagraph: string | null
-                nextParagraph: string | null
-                textBefore: string
-                textAfter: string
-                nodeType: string
-              }
-            }) => {
-              const currentSettingData = useAppSettingStore.getState().settingData
-              const modelConfig = resolveCopilotModelConfig(currentSettingData)
-
-              const contextPrompt = [
-                context.prevParagraph ? `Previous paragraph: ${context.prevParagraph}` : '',
-                `Current paragraph context:`,
-                `Text before cursor: ${context.textBefore}`,
-                `Text after cursor: ${context.textAfter}`,
-                context.nextParagraph ? `Next paragraph: ${context.nextParagraph}` : '',
-              ]
-                .filter(Boolean)
-                .join('\n')
-
-              logger.info('copilot', contextPrompt)
-              const text = await aiGenerateTextRequest({
-                sdkProvider: modelConfig.providerId,
-                url: modelConfig.apiBase,
-                apiKey: modelConfig.apiKey,
-                model: modelConfig.modelId,
-                messages: [
-                  {
-                    role: 'system',
-                    content:
-                      '## Task: Content Completion, Fill Text at the `{CURSOR}` Position.\n' +
-                      '\n' +
-                      '### Instructions:\n' +
-                      '- You are a world class writing assistant.\n' +
-                      '- Given the current text, context, and the `{CURSOR}` position, provide a suggestion for text completion.\n' +
-                      '- The suggestion must be based on the current text, as well as the text before the cursor.\n' +
-                      '- Output ONLY the missing continuation immediately after the cursor, not a full rewrite.\n' +
-                      '- Never repeat or paraphrase any part of the existing text before or after the cursor.\n' +
-                      '- Write in the same language as the user input (auto-detect from the context). If unclear, default to ' +
-                      `${locales[currentSettingData.language as keyof typeof locales]}.\n` +
-                      '- Continue the writing style and tone of the existing text.\n' +
-                      '- Use Markdown only if already present in the paragraph; do not introduce new headings or lists.\n' +
-                      '- Complete ONLY the current paragraph. Do not start a new paragraph or add unrelated content.\n' +
-                      '- Keep the completion short: at most 2 sentences.\n' +
-                      '- THIS IS NOT A CONVERSATION, SO PLEASE DO NOT ASK QUESTIONS OR PROMPT FOR ADDITIONAL INFORMATION.\n' +
-                      '\n' +
-                      '### Notes:\n' +
-                      '- Never include any annotations such as "Suggestion:" or "Suggestions:".\n' +
-                      '- Never suggest a newline after a space or newline.\n' +
-                      '- If you do not have a suggestion, return an empty string.\n' +
-                      '- If text after the cursor is non-empty, return an empty string.\n' +
-                      '- DO NOT RETURN ANY TEXT THAT IS ALREADY PRESENT IN THE CURRENT TEXT.\n',
-                  },
-                  {
-                    role: 'system',
-                    content: 'Context:\n' + '---\n' + contextPrompt + '\n' + '---\n',
-                  },
-                ],
-                headers: modelConfig.headers,
-              })
-              return text
-            },
-          }
-        : undefined,
-      generateText: async (params) => {
-        const currentSettingData = useAppSettingStore.getState().settingData
-        const modelConfig = resolveSelectedAIModelConfig(
-          params.provider,
-          params.model,
-          currentSettingData,
-        )
-        const text = await aiGenerateTextRequest({
-          sdkProvider: modelConfig.providerId,
-          url: modelConfig.apiBase,
-          apiKey: modelConfig.apiKey,
-          model: modelConfig.modelId,
-          messages: [
-            {
-              role: 'system',
-              content:
-                'You are a helpful Markdown editor assistant, Please refer to the user information to generate the Markdown content.',
-            },
-            {
-              role: 'user',
-              content: params.prompt,
-            },
-          ],
-          headers: modelConfig.headers,
-        })
-
-        return text
-      },
     },
     customCopyFunction: async (text) => {
       try {
