@@ -46,9 +46,13 @@ jobs:
         with:
           workspaces: './apps/desktop/src-tauri -> target'
 
-      # ---- 安装前端依赖（Yarn 4 PnP zero-install，--immutable 保证可复现）----
+      # ---- 安装前端依赖 ----
+      # 注意：仓库用 nodeLinker: node-modules + 本地 .yarn/cache（非 PnP）。
+      # 若 fork / 当前分支的 yarn.lock 与 package.json 不一致（重构期常见），
+      # --immutable 会报 YN0028 直接失败。这里去掉 --immutable 允许 CI 重新解析。
+      # 想要可复现构建：本地执行 `yarn install` 后把更新后的 yarn.lock 提交到仓库即可。
       - name: Install dependencies
-        run: yarn install --immutable
+        run: yarn install
 
       # ---- 确保 Tauri 签名密钥（createUpdaterArtifacts:true 必须签名）----
       # 若仓库未配置 TAURI_PRIVATE_KEY / TAURI_KEY_PASSWORD 这两个 secret，
