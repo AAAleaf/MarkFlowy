@@ -1,0 +1,118 @@
+/* MenuBar — Typora-style top horizontal menu */
+.mf-menubar {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 8px;
+  background-color: var(--mf-bg-color, #fff);
+  border-bottom: 1px solid var(--mf-border-color, #e5e5e5);
+  user-select: none;
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+}
+
+.mf-menubar-menus {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  -webkit-app-region: no-drag;
+}
+
+.mf-menubar-trigger {
+  padding: 3px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--mf-text-color, #333);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.12s;
+}
+
+.mf-menubar-trigger:hover,
+.mf-menubar-trigger[data-state='open'] {
+  background-color: var(--mf-hover-color, rgba(0, 0, 0, 0.06));
+}
+
+.mf-menubar-content {
+  min-width: 200px;
+  padding: 4px;
+  background-color: var(--mf-bg-color, #fff);
+  border: 1px solid var(--mf-border-color, #e0e0e0);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  animation: mf-menubar-fade-in 0.1s ease;
+}
+
+@keyframes mf-menubar-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mf-menubar-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--mf-text-color, #333);
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.1s;
+}
+
+.mf-menubar-item:hover,
+.mf-menubar-item[data-highlighted] {
+  background-color: var(--mf-accent-color, #0066ff);
+  color: #fff;
+}
+
+.mf-menubar-item[data-disabled] {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.mf-menubar-item-label {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.mf-menubar-item-shortcut {
+  margin-left: 24px;
+  font-size: 12px;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+.mf-menubar-item:hover .mf-menubar-item-shortcut,
+.mf-menubar-item[data-highlighted] .mf-menubar-item-shortcut {
+  opacity: 0.85;
+}
+
+.mf-menubar-subtrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mf-menubar-subtrigger-icon {
+  font-size: 14px;
+  margin-left: 12px;
+}
+
+.mf-menubar-separator {
+  height: 1px;
+  margin: 4px 8px;
+  background-color: var(--mf-border-color, #e5e5e5);
+}
