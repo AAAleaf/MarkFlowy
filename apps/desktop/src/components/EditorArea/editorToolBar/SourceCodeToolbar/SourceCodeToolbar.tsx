@@ -14,7 +14,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { MenuList } from '../components/MenuList'
-import { AIButton } from '../WysiwygToolbar/components/AIButton'
 import { sourceCodeCodemirrorViewMap } from '../../TextEditor'
 import { clipboardRead } from '@/helper/clipboard'
 import { requestImageInsert } from '../../requestImageInsert'
@@ -85,7 +84,6 @@ export const SourceCodeToolbar: FC<SourceCodeToolbarProps> = (props) => {
     <ToolbarWrapper ref={containerRef}>
       <ToolbarSection id="common" registerWidth={registerItemWidth} hidden={hiddenIds.has('common')}>
         <MenuList editorId={targetEditorId} size='small' />
-        <AIButton editorId={targetEditorId} />
       </ToolbarSection>
 
       <ToolbarSection id="history" registerWidth={registerItemWidth} hidden={hiddenIds.has('history')}>
