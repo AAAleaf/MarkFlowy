@@ -1,5 +1,4 @@
 import Logo from '@/assets/logo.svg?react'
-import type { OpenSettingTarget } from '@/extensions/ai/aiProvidersService'
 import { installUpdate } from '@/helper/updater'
 import type { SettingData } from '@/router/Setting/settingMap'
 import { getSettingMap } from '@/router/Setting/settingMap'
@@ -16,7 +15,6 @@ import { memo, useEffect, useState } from 'react'
 import { useTranslation } from '@/i18n'
 import { Button, toast } from 'zens'
 import SettingGroup from './component/SettingGroup'
-import { CopilotSetting } from './CopilotSetting'
 import { ImageSetting } from './ImageSetting'
 import { KeyboardTable } from './KeyboardTable'
 import { Container } from './styles'
@@ -42,16 +40,7 @@ function isSettingGroup(
   return typeof group === 'object'
 }
 
-export interface SettingNavigationRequest {
-  id: number
-  target?: OpenSettingTarget
-}
-
-interface SettingProps {
-  navigationRequest?: SettingNavigationRequest
-}
-
-function Setting({ navigationRequest }: SettingProps) {
+function Setting() {
   const { appInfo } = useAppInfoStore()
   const { t } = useTranslation()
   const [update, setUpdate] = useState<Update | null>(null)
@@ -83,7 +72,7 @@ function Setting({ navigationRequest }: SettingProps) {
   ) as (keyof typeof settingMap)[]
   type SettingCategoryKey = Exclude<keyof SettingData, 'i18nKey' | 'iconName' | 'desc'>
   const [curGroupKey, setCurGroupKey] = useState<SettingCategoryKey>(
-    navigationRequest?.target?.category ?? (settingDataGroupsKeys[0] as SettingCategoryKey),
+    settingDataGroupsKeys[0] as SettingCategoryKey,
   )
   const value = settingDataGroupsKeys.indexOf(curGroupKey)
   const curGroup = settingMap[curGroupKey] as Setting.SettingGroup
@@ -114,10 +103,6 @@ function Setting({ navigationRequest }: SettingProps) {
       return <Support />
     }
 
-    if (curGroupKey === 'copilot') {
-      return <CopilotSetting />
-    }
-
     return curGroupKeys.map((key) => {
       const group = curGroup[key]
       if (key === 'Theme' && curGroupKey === 'display') {
@@ -130,7 +115,6 @@ function Setting({ navigationRequest }: SettingProps) {
             group={group}
             groupKey={key}
             categoryKey={curGroupKey}
-            activeChildId={curGroupKey === 'ai' ? navigationRequest?.target?.providerId : undefined}
           />
         )
       }
