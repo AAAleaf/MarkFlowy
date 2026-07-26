@@ -31,11 +31,11 @@ jobs:
           # 等上游修复 main 后，把下面这行 ref 删掉即可回到最新代码。
           ref: 513b2365cb00b17fce646679ccf094bdbf6ce6ce
 
-      # ---- 前端环境：Node 22（package.json engines 要求 >=22.12）----
+      # ---- 前端环境：用仓库自带的 .node-version（当前为 Node 24）----
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
 
       # ---- 启用 Corepack 以使用 package.json 中声明的 Yarn 4.8 ----
       - name: Enable Corepack (Yarn 4.8)
@@ -50,7 +50,9 @@ jobs:
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: './apps/desktop/src-tauri -> target'
+          # 仓库根有 [workspace]（成员含 apps/desktop/src-tauri），
+          # 因此 cargo 的 target 目录在仓库根 target/ 而非 src-tauri/target/。
+          workspaces: './ -> target'
 
       # ---- 安装前端依赖 ----
       # 仓库用 nodeLinker: node-modules + 本地 .yarn/cache（非 PnP）。
@@ -63,6 +65,15 @@ jobs:
         run: yarn install
         env:
           YARN_ENABLE_IMMUTABLE_INSTALLS: false
+
+      # ---- 写入桌面端构建所需的环境变量文件（与上游 tauri-release.yml 一致）----
+      - name: Write env file
+        run: |
+          echo VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }} >> ./apps/desktop/.env
+
+      # ---- turbo postinstall（与上游一致；workspace 包的前置准备）----
+      - name: Setup (turbo postinstall)
+        run: yarn setup
 
       # ---- 确保 Tauri 签名密钥（createUpdaterArtifacts:true 必须签名）----
       # 若仓库未配置 TAURI_PRIVATE_KEY / TAURI_KEY_PASSWORD 这两个 secret，
@@ -83,17 +94,25 @@ jobs:
           echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=${{ secrets.TAURI_KEY_PASSWORD }}" >> "$GITHUB_ENV"
 
       # ---- 构建 Windows 桌面端（产出 nsis 安装包 exe + msi）----
+      # 注意：显式带 --target x86_64-pc-windows-msvc，产物落在
+      #   <仓库根>/target/x86_64-pc-windows-msvc/release/bundle/{nsis,msi}/
+      # （仓库根有 cargo [workspace]，target 目录在仓库根而非 src-tauri 下）
       - name: Build MarkFlowy desktop (EXE)
-        run: yarn build:desktop
+        run: yarn build:desktop --target x86_64-pc-windows-msvc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ---- 列出产物，便于排错 ----
+      # ---- 列出产物，便于排错（无论构建成功失败都执行）----
       - name: List build artifacts
+        if: always()
         shell: bash
         run: |
-          echo "::group::bundle contents"
-          ls -R "apps/desktop/src-tauri/target/release/bundle" || true
+          echo "::group::bundle contents (expected: ./target/x86_64-pc-windows-msvc/release/bundle)"
+          ls -R "target/x86_64-pc-windows-msvc/release/bundle" 2>/dev/null || true
+          echo "::endgroup::"
+          echo "::group::fallback search"
+          find . -path '*release/bundle/nsis/*.exe' 2>/dev/null | head
+          find . -path '*release/bundle/msi/*.msi' 2>/dev/null | head
           echo "::endgroup::"
 
       # ---- 上传产物为可下载 Artifact（每次构建都有，即使没打 tag）----
@@ -102,7 +121,8 @@ jobs:
         with:
           name: MarkFlowy-Windows
           path: |
-            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
           if-no-files-found: warn
 
       # ---- 仅当推送 v* tag 时，自动创建 GitHub Release 并附上安装包 ----
@@ -111,7 +131,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
           draft: false
           prerelease: false
           generate_release_notes: true
