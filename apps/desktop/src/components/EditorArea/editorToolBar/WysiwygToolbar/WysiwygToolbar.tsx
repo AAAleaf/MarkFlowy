@@ -13,7 +13,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { MenuList } from '../components/MenuList'
-import { AIButton } from './components/AIButton'
 
 interface WysiwygToolbarProps {
   editorId?: string
@@ -66,7 +65,6 @@ export const WysiwygToolbar: FC<WysiwygToolbarProps> = (props) => {
         hidden={hiddenIds.has('common')}
       >
         <MenuList editorId={targetEditorId} showTypewriterScroll />
-        <AIButton editorId={targetEditorId} />
       </ToolbarSection>
 
       <ToolbarSection
