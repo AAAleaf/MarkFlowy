@@ -1544,8 +1544,14 @@ pub fn run() {
             })?;
             sync_cli_runtime_windows(app.handle());
 
-            #[cfg(target_os = "macos")]
-            menu::generate_menu(app).expect("failed to generate menu");
+             // Remove the default native menu on all platforms.
+            // The frontend renders a Typora-style menu bar instead.
+            {
+                let empty_menu = tauri::menu::Menu::new(app.handle())
+                    .expect("failed to create empty menu");
+                app.set_menu(empty_menu)
+                    .expect("failed to remove default menu");
+            }
 
             Ok(())
         })
