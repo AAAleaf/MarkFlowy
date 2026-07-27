@@ -14,17 +14,12 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { toast } from 'zens'
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
 function getActiveEditorCtx() {
   const { activeId, getEditorCtx } = useEditorStore.getState()
   if (!activeId) return undefined
   return getEditorCtx(activeId)
 }
 
-/** Execute a command on the active editor's prosemirror command object. */
 function execEditorCmd(commandName: string, attrs?: Record<string, unknown>) {
   const ctx = getActiveEditorCtx()
   if (!ctx) return
@@ -42,22 +37,15 @@ function getExtFromPath(path: string): string {
   return dotIdx >= 0 ? fileName.slice(dotIdx + 1) : 'md'
 }
 
-/* ------------------------------------------------------------------ */
-/*  Registration                                                       */
-/* ------------------------------------------------------------------ */
-
 export function registerMenuCommands(): () => void {
   const disposables: { dispose: () => void }[] = []
   const reg = (id: string, handler: (...args: unknown[]) => unknown) => {
     disposables.push(commandRegistry.registerCommand({ id, handler }))
   }
 
-  /* ======================== File menu ======================== */
-
+  /* File */
   reg('app_newFile', () => addEmptyEditorTab())
-
   reg('app_newWindow', () => invoke('create_new_window', {}))
-
   reg('app_openFile', async () => {
     const file = await open({
       multiple: false,
@@ -69,67 +57,40 @@ export function registerMenuCommands(): () => void {
     const fileName = getFileNameFromPath(file) || 'new-file.md'
     await addExistingMarkdownFileEdit({ fileName, ext: getExtFromPath(file), path: file })
   })
-
-  // app_openFolder — already registered in useCommandInit
-  // app_save       — already registered in TextEditor (per active editor)
-
-  reg('app_saveAs', () => {
-    // Triggers the editor save flow; new files will get a save dialog automatically
-    bus.emit(EVENT.app_save)
-  })
-
+  reg('app_saveAs', () => { bus.emit(EVENT.app_save) })
   reg('app_exportHtml', () => bus.emit('editor_export_html'))
   reg('app_exportImage', () => bus.emit('editor_export_image'))
-
-  // app_openSetting — already registered in SettingDialog
-
   reg('app_quit', () => currentWindow.close())
 
-  /* ======================== Edit menu ======================== */
-
+  /* Edit */
   reg('editor_undo', () => execEditorCmd('undo'))
   reg('editor_redo', () => execEditorCmd('redo'))
-
-  reg('editor_cut', () => {
-    document.execCommand('cut')
-  })
-  reg('editor_copy', () => {
-    document.execCommand('copy')
-  })
-  reg('editor_paste', () => {
-    document.execCommand('paste')
-  })
-  reg('editor_selectAll', () => {
-    document.execCommand('selectAll')
-  })
-
+  reg('editor_cut', () => { document.execCommand('cut') })
+  reg('editor_copy', () => { document.execCommand('copy') })
+  reg('editor_paste', () => { document.execCommand('paste') })
+  reg('editor_selectAll', () => { document.execCommand('selectAll') })
   reg('app_find', () => commandRegistry.execute('app_findReplaceEditor'))
   reg('app_replace', () => commandRegistry.execute('app_findReplaceEditor'))
-
   reg('app_convertText_tw', () => toast.info('简繁转换功能开发中'))
   reg('app_convertText_hk', () => toast.info('简繁转换功能开发中'))
   reg('app_convertText_cn', () => toast.info('简繁转换功能开发中'))
 
-  /* ====================== Paragraph menu ===================== */
-
+  /* Paragraph */
   reg('editor_heading1', () => execEditorCmd('toggleHeading', { level: 1 }))
   reg('editor_heading2', () => execEditorCmd('toggleHeading', { level: 2 }))
   reg('editor_heading3', () => execEditorCmd('toggleHeading', { level: 3 }))
   reg('editor_heading4', () => execEditorCmd('toggleHeading', { level: 4 }))
   reg('editor_heading5', () => execEditorCmd('toggleHeading', { level: 5 }))
   reg('editor_heading6', () => execEditorCmd('toggleHeading', { level: 6 }))
-
   reg('editor_orderedList', () => execEditorCmd('toggleList', { kind: 'ordered' }))
   reg('editor_bulletList', () => execEditorCmd('toggleList', { kind: 'bullet' }))
   reg('editor_taskList', () => execEditorCmd('toggleList', { kind: 'task' }))
-
   reg('editor_blockquote', () => execEditorCmd('toggleBlockquote'))
   reg('editor_codeblock', () => execEditorCmd('toggleCodeBlock'))
   reg('editor_insertTable', () => execEditorCmd('insertTable', { rows: 3, cols: 3 }))
   reg('editor_hr', () => execEditorCmd('insertHr'))
 
-  /* ======================= Format menu ======================= */
-
+  /* Format */
   reg('editor_bold', () => execEditorCmd('toggleStrong'))
   reg('editor_italic', () => execEditorCmd('toggleEmphasis'))
   reg('editor_underline', () => execEditorCmd('toggleUnderline'))
@@ -139,18 +100,10 @@ export function registerMenuCommands(): () => void {
   reg('editor_insertImage', () => execEditorCmd('requestImageInsert'))
   reg('editor_clearFormat', () => execEditorCmd('clearFormat'))
 
-  /* ======================== View menu ======================== */
-
-  reg('app_viewWysiwyg', () =>
-    bus.emit('editor_toggle_type', undefined, EditorViewType.WYSIWYG),
-  )
-  reg('app_viewSource', () =>
-    bus.emit('editor_toggle_type', undefined, EditorViewType.SOURCECODE),
-  )
-  reg('app_viewPreview', () =>
-    bus.emit('editor_toggle_type', undefined, EditorViewType.PREVIEW),
-  )
-
+  /* View */
+  reg('app_viewWysiwyg', () => bus.emit('editor_toggle_type', undefined, EditorViewType.WYSIWYG))
+  reg('app_viewSource', () => bus.emit('editor_toggle_type', undefined, EditorViewType.SOURCECODE))
+  reg('app_viewPreview', () => bus.emit('editor_toggle_type', undefined, EditorViewType.PREVIEW))
   reg('app_toggleTypewriter', () => {
     const ctx = getActiveEditorCtx()
     if (!ctx) return
@@ -164,70 +117,40 @@ export function registerMenuCommands(): () => void {
     }
   })
 
-  // app_toggleLeftsidebarVisible  — already registered in Root
-  // app_toggleRightsidebarVisible — already registered in Root
-
   const ZOOM_STEP = 0.1
-  const ZOOM_MIN = 0.5
-  const ZOOM_MAX = 3.0
-
   const getCurZoom = (): number => {
     const { settingData } = useAppSettingStore.getState()
     return Number(settingData?.webview_zoom) || 1.0
   }
-
   const applyZoom = (newZoom: number) => {
-    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(newZoom * 100) / 100))
+    const clamped = Math.min(3.0, Math.max(0.5, Math.round(newZoom * 100) / 100))
     getCurrentWebview().setZoom(clamped)
     const { settingData, setSettingData } = useAppSettingStore.getState()
     const next = { ...settingData, webview_zoom: String(clamped) }
     setSettingData(next)
     invoke('save_app_conf', { data: next, label: 'markflowy' }).catch(() => {})
   }
-
   reg('app_zoomIn', () => applyZoom(getCurZoom() + ZOOM_STEP))
   reg('app_zoomOut', () => applyZoom(getCurZoom() - ZOOM_STEP))
   reg('app_zoomReset', () => applyZoom(1.0))
 
-  /* ======================== Image menu ======================= */
-
-  reg('editor_insertImageUrl', () => {
-    // Reuse the editor's built-in image insert which shows a dialog
-    execEditorCmd('requestImageInsert')
-  })
-
+  /* Image */
+  reg('editor_insertImageUrl', () => execEditorCmd('requestImageInsert'))
   reg('app_uploadAllImages', () => toast.info('批量上传图片功能开发中'))
+  reg('app_openImageSetting', () => { commandRegistry.execute(EVENT.app_openSetting) })
 
-  reg('app_openImageSetting', () => {
-    commandRegistry.execute(EVENT.app_openSetting)
-  })
-
-  /* ======================== Help menu ======================== */
-
-  reg('app_about', () => {
-    emitTo(currentWindow.label, EVENT.app_about)
-  })
-
+  /* Help */
+  reg('app_about', () => { emitTo(currentWindow.label, EVENT.app_about) })
   reg('app_checkUpdate', async () => {
     try {
       const { check } = await import('@tauri-apps/plugin-updater')
       const update = await check()
-      if (update) {
-        toast.success(`发现新版本: ${update.version}`)
-      } else {
-        toast.info('当前已是最新版本')
-      }
-    } catch {
-      toast.error('检查更新失败')
-    }
+      if (update) { toast.success(`发现新版本: ${update.version}`) }
+      else { toast.info('当前已是最新版本') }
+    } catch { toast.error('检查更新失败') }
   })
-
   reg('app_openHomepage', () => openUrl('https://github.com/drl990114/MarkFlowy'))
   reg('app_openFeedback', () => openUrl('https://github.com/drl990114/MarkFlowy/issues'))
 
-  /* ======================== Cleanup ========================== */
-
-  return () => {
-    for (const d of disposables) d.dispose()
-  }
+  return () => { for (const d of disposables) d.dispose() }
 }
