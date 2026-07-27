@@ -1544,7 +1544,7 @@ pub fn run() {
             })?;
             sync_cli_runtime_windows(app.handle());
 
-             // Remove the default native menu on all platforms.
+            // Remove the default native menu on all platforms.
             // The frontend renders a Typora-style menu bar instead.
             {
                 let empty_menu = tauri::menu::Menu::new(app.handle())
